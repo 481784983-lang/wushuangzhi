@@ -1,0 +1,1084 @@
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>天下为棋-无双志 v21（多气泡分离模式）</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Merriweather:ital,wght@0,400;1,400&family=Noto+Sans+SC:wght@400;500;700&family=Almendra+SC&family=Cinzel+Decorative:wght@700&family=EB+Garamond&family=Josefin+Sans&family=Playfair+Display&family=Roboto+Slab&family=Spectral&display=swap" rel="stylesheet">
+<style>
+    /* --- [ 0. 基础 ] --- */
+    :root { --ease-snap: cubic-bezier(.12,.72,.24,1); }
+
+    body { font-family: 'Noto Sans SC', 'Merriweather', serif; background-color: #1a1c23; color: #e0e0e0; margin: 0; padding: 15px; }
+    .hidden { display: none !important; }
+    .value-main { font-weight: 500; color: #ffffff; }
+    .property-name { font-weight: bold; color: #a0a0a0; }
+    .empty-state-text { color: #a0a0a0; font-style: italic; text-align: center; padding: 10px; opacity: 0.7; }
+
+    .status-container { max-width: 900px; margin: auto; transition: all 0.8s ease; border-radius: 12px; color: #e0e0e0; }
+    .status-container > div { position: relative; z-index: 1; }
+    .status-container div, .status-container p, .status-container span, 
+    .status-container summary, .status-container details { font-family: inherit; color: #e0e0e0; }
+
+    .master-ui-title { text-align: center; padding: 10px 0 5px 0; }
+    .master-ui-title h1 {
+        font-family: var(--theme-font-title, 'Cinzel Decorative', serif); 
+        font-size: 3.0em; font-weight: 700; margin: 0; color: #e0e0e0;
+        text-shadow: 0 0 8px rgba(255,255,255,0.7), 0 0 15px var(--theme-accent-glow, #a8904a), 2px 2px 5px rgba(0,0,0,0.7);
+    }
+    .yongtan-footer { text-align: center; padding-top: 15px; margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+
+    /* --- [ 1. 主题定义 ] --- */
+    #chessboard-container-wrapper.theme-imperial { 
+        --theme-accent-glow: #a8904a; 
+        --theme-font-title: 'Cinzel Decorative', serif;
+        --theme-font-header: 'Playfair Display', serif;
+        font-family: 'Playfair Display', serif; 
+        background-color: #1e222a; border: 2px solid #a8904a; 
+        padding: 20px; animation: regal-pulse-imperial 8s infinite ease-in-out;
+    }
+    #chessboard-container-wrapper.theme-elven { 
+        --theme-accent-glow: #00ff7f; 
+        --theme-font-title: 'Josefin Sans', sans-serif;
+        --theme-font-header: 'EB Garamond', serif;
+        font-family: 'EB Garamond', serif; 
+        background: #1a232a url('https://www.transparenttextures.com/patterns/stardust.png'); 
+        border: 1px solid rgba(0, 255, 127, 0.5); 
+        padding: 20px; animation: shimmer-glow-elven 6s infinite ease-in-out; 
+    }
+    #chessboard-container-wrapper.theme-draconic { 
+        --theme-accent-glow: #D4AF37; 
+        --theme-font-title: 'Almendra SC', serif;
+        --theme-font-header: 'Cinzel', serif;
+        font-family: 'Cinzel Decorative', cursive; 
+        background-color: #100808; border: 2px solid #8b0000; 
+        padding: 20px; animation: pulse-glow-draconic 4s infinite ease-in-out;
+    }
+    #chessboard-container-wrapper.theme-draconic details.sub-section > summary { background-color: #3a0000; }
+    #chessboard-container-wrapper.theme-draconic .master-ui-title h1 { color: var(--theme-accent-glow); }
+
+    #chessboard-container-wrapper.theme-abyss { 
+        --theme-accent-glow: #8a2be2;
+        --theme-font-title: 'Cinzel Decorative', serif;
+        --theme-font-header: 'Spectral', serif;
+        font-family: 'Almendra SC', serif; 
+        background: #0d0a1a url('https://www.transparenttextures.com/patterns/dark-matter.png'); 
+        border: 2px solid #4b0082; padding: 20px; 
+        animation: pulse-glow-abyss 4s infinite ease-in-out; 
+        position: relative;
+        overflow: visible; 
+        isolation: isolate; 
+    }
+    #chessboard-container-wrapper.theme-abyss::before {
+        content: ''; position: absolute; inset: 0; 
+        background: linear-gradient(45deg, rgba(75,0,130,0.3) 0%, rgba(138,43,226,0.1) 50%, rgba(75,0,130,0.3) 100%);
+        animation: abyss-flow 10s infinite linear; z-index: 0; pointer-events: none;
+    }
+
+    /* 光效动画 */
+    @keyframes regal-pulse-imperial {
+        0%, 100% { box-shadow: 0 10px 40px rgba(0,0,0,0.7), inset 0 0 20px rgba(0,0,0,0.6), 0 0 20px #a8904a; }
+        50% { box-shadow: 0 10px 40px rgba(0,0,0,0.7), inset 0 0 20px rgba(0,0,0,0.6), 0 0 35px #a8904a; }
+    }
+    @keyframes shimmer-glow-elven {
+        0%, 100% { box-shadow: 0 0 25px rgba(0, 255, 127, 0.4), 0 0 45px rgba(0, 255, 127, 0.2) inset; }
+        50% { box-shadow: 0 0 35px rgba(0, 255, 127, 0.6), 0 0 45px rgba(175, 238, 238, 0.3) inset; }
+    }
+    @keyframes pulse-glow-draconic {
+        0%, 100% { box-shadow: 0 0 20px #8b0000, 0 0 30px #6a0000, inset 0 0 20px #100808; border-color: #8b0000; }
+        50% { box-shadow: 0 0 35px #c0392b, 0 0 45px #8b0000, inset 0 0 20px #100808; border-color: #c0392b; }
+    }
+    @keyframes pulse-glow-abyss { 
+        0%, 100% { box-shadow: 0 0 25px #8a2be2, 0 0 35px #4b0082; } 
+        50% { box-shadow: 0 0 40px #9400d3, 0 0 55px #4b0082; } 
+    }
+    @keyframes abyss-flow {
+        0% { transform: rotate(0deg) translateX(0); }
+        50% { transform: rotate(10deg) translateX(-10%); }
+        100% { transform: rotate(0deg) translateX(0); }
+    }
+
+    /* --- [ 2. 日常 UI 结构样式（*修改*） ] --- */
+    .world-info-box { background-color: rgba(0,0,0,0.2); padding: 12px 18px; border-radius: 6px; margin-bottom: 20px; border: 1px solid rgba(255, 255, 255, 0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 8px 15px; align-items: center; }
+    .world-info-box p { margin: 5px 0; font-family: 'Noto Sans SC', sans-serif; } 
+
+    /* *修改*：移除了 .section，只保留 .sub-section */
+    details.sub-section { margin-bottom: 10px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; background: rgba(10,10,15,0.2); }
+    /* *修改*：限定为 .sub-section 的 summary */
+    details.sub-section > summary { display: flex; justify-content: space-between; align-items: center; list-style: none; padding: 12px 15px; cursor: pointer; font-weight: 700; font-family: var(--theme-font-header, 'Cinzel', serif); transition: all 0.2s ease; }
+    details.sub-section > summary:hover { background: rgba(255, 255, 255, 0.05); }
+    details.sub-section > summary::-webkit-details-marker { display: none; }
+    /* *修改*：限定为 .sub-section 的 summary 内部的 icon */
+    details.sub-section > summary .summary-icon { margin-right: 10px; color: #a0a0a0; opacity: 0.8; }
+    
+    .arrow-toggle { transition: transform 0.3s ease; margin-left: auto;}
+    /* *修改*：限定为 .sub-section */
+    details.sub-section[open] > summary .arrow-toggle { transform: rotate(90deg); }
+    
+    /* .section-content 依然由 JS 生成，保持原样 */
+    .section-content, .sub-section-content { padding: 15px; background-color: rgba(0, 0, 0, 0.2); border-top: 1px solid rgba(255, 255, 255, 0.08); }
+    /* *修改*：.section-content 不再是 details 的直接子元素，移除边框 */
+    .section-content { border-top: none; }
+    /* *修改*：为 .sub-section-content 添加边框（它现在是 .section-content 里的 details 的子元素） */
+    .sub-section-content { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+    
+    hr { border: 0; height: 1px; background-image: linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent); margin: 15px 0; }
+    .char-property-grid, .item-row, .char-favor-bar-container, .news-content, .poem-grid { font-family: 'Noto Sans SC', sans-serif !important; }
+    .char-property-grid { display: grid; grid-template-columns: 22px auto 1fr; gap: 9px 8px; align-items: start; }
+    .char-property-grid .char-icon { font-size: 1.1em; text-align: center; opacity: 0.8; margin-top: 1px; color: #a0a0a0; }
+    .char-property-grid .char-prop-name { font-weight: bold; color: #a0a0a0; white-space: nowrap; }
+    .char-property-grid .char-prop-value { color: #e0e0e0; text-align: right; word-break: break-word; line-height: 1.4; }
+    .item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .item-row:last-child { border-bottom: none; }
+    .char-favor-bar-container { background-color: rgba(0,0,0,0.4); border-radius: 5px; height: 10px; overflow:hidden; border: 1px solid #202020; padding: 1px; }
+    .char-favor-bar { background: #e64b6e; height: 100%; border-radius: 5px; transition: width 0.5s ease; }
+    .news-content { font-size: 0.9em; line-height: 1.7; color: #e0e0e0; white-space: pre-line; padding: 5px; }
+    .poem-grid { display: grid; grid-template-columns: 1fr; gap: 5px 20px; padding: 10px 0; font-family: var(--theme-font-header, 'Cinzel', serif); font-size: 1.2em; line-height: 1.6; color: #a0a0a0; text-align: center; }
+    .poem-grid p { margin: 0; }
+
+    /* --- [ 3. 大气泡样式（保持不变） ] --- */
+    .bubble-shell { margin-top: 10px; position: relative; z-index: 1; }
+    .bubble-toggle {
+        display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px; cursor: pointer; user-select: none;
+        background: radial-gradient(120% 200% at 0 0, rgba(255,255,255,.12), transparent 45%), linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+        border: 1px solid rgba(255,255,255,.18); 
+        box-shadow: 0 2px 10px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.06);
+        transition: transform .25s ease, box-shadow .35s ease, filter .35s ease;
+        font-family: var(--theme-font-header, 'Playfair Display', serif); font-weight: 700;
+        color: #e0e0e0; /* *新增*：确保文字颜色 */
+    }
+    .bubble-toggle:hover { transform: translateY(-1px) scale(1.02); box-shadow: 0 8px 22px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.08); }
+    .bubble-toggle .pulse-dot { width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #fff, var(--theme-accent-glow)); box-shadow: 0 0 10px var(--theme-accent-glow), 0 0 20px var(--theme-accent-glow); animation: dot 1.8s infinite ease-in-out; }
+    @keyframes dot { 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.3);opacity:1} }
+    
+    /* *新增*：气泡按钮内的图标样式 */
+    .bubble-toggle .summary-icon {
+        margin-right: 8px;
+        color: #e0e0e0;
+        opacity: 0.9;
+        font-size: 1.1em;
+    }
+
+    .big-bubble {
+        position: relative; margin-top: 12px; border-radius: 20px;
+        background: radial-gradient(1200px 500px at 10% -10%, rgba(255,255,255,.06), transparent 60%),
+                    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
+                    rgba(16,16,22,.45);
+        border: 1px solid rgba(255,255,255,.18);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.05), 0 10px 30px rgba(0,0,0,.45), 0 0 28px rgba(138,43,226,.35);
+        backdrop-filter: blur(8px) saturate(110%);
+        max-height: 0; overflow: hidden; opacity: 0; transform: scale(.985);
+        transform-origin: var(--origin-x, 50%) var(--origin-y, 16px);
+        transition: max-height .6s var(--ease-snap), opacity .25s ease-out, transform .42s var(--ease-snap), box-shadow .35s ease-out;
+    }
+    .bubble-shell.open .big-bubble { opacity: 1; transform: scale(1); }
+    .big-bubble::after { content:''; position:absolute; inset:-40% -20%; 
+        background: conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,.06), transparent 20%, transparent 60%, rgba(255,255,255,.06) 80%, transparent);
+        mix-blend-mode: screen; opacity:.4; pointer-events:none; animation: sweep 8s linear infinite;
+    }
+    @keyframes sweep { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+    .bubble-inner { padding: 16px; position: relative; z-index: 1; }
+
+    /* --- [ 4. 战斗 UI v2.0 (保持你原样式) ] --- */
+    /* ... (战斗 UI 的 CSS 保持不变，此处省略以节约篇幅) ... */
+    :root { 
+        --battle-border-color: #4a4a4a;
+        --battle-font-primary: 'Noto Sans SC', sans-serif;
+        --battle-font-secondary: 'Cinzel', 'EB Garamond', 'Noto Serif SC', serif; 
+        --blood-red-dark: #6a0000;
+        --blood-red: #8B0000;
+        --blood-red-light: #c0392b;
+        --accent-gold-battle: #D4AF37; 
+        --text-light: #f0f0f0;
+        --text-dark: #1a1a1a;
+        --text-secondary-battle: #999; 
+        --hp-color: #c0392b;
+        --hp-color-light: #e74c3c;
+        --mp-color: #2980b9;
+        --mp-color-light: #3498db;
+        --bar-bg: #333;
+        --overlay-bg: rgba(0, 0, 0, 0.85);
+        --parchment-bg-dark: #2a2a2a; 
+    }
+    @keyframes pulse-glow-battle {
+        0%, 100% { box-shadow: 0 0 25px rgba(139, 0, 0, 0.6), inset 0 0 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 0, 0, 0.5); }
+        50% { box-shadow: 0 0 35px rgba(255, 0, 0, 0.8), inset 0 0 10px rgba(0, 0, 0, 0.5), 0 0 25px rgba(255, 0, 0, 0.7); }
+    }
+    @keyframes bar-flow {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(200%); }
+    }
+    #battle-ui-wrapper {
+        max-width: 900px; margin: 10px auto; padding: 12px;
+        background-color: #1a1a1a;
+        background-image: linear-gradient(135deg, rgba(139, 0, 0, 0.3) 0%, rgba(0,0,0,0) 60%),
+                            radial-gradient(ellipse at bottom, rgba(100, 0, 0, 0.4) 0%, rgba(0,0,0,0) 70%),
+                            linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
+                            url('https://www.transparenttextures.com/patterns/rocky-wall.png');
+        border: 2px solid var(--blood-red); border-radius: 8px;
+        font-family: var(--battle-font-primary); color: var(--text-light);
+        font-size: 14px; line-height: 1.6; display: flex; flex-direction: column;
+        gap: 12px; animation: pulse-glow-battle 5s infinite ease-in-out;
+    }
+    #battle-ui-wrapper .combatant-area { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #battle-ui-wrapper .team {
+        display: flex; flex-direction: column; gap: 8px; padding: 10px;
+        background: rgba(10,10,15,0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px;
+    }
+    #battle-ui-wrapper .team-title {
+        font-family: var(--battle-font-secondary);
+        font-weight: 700; font-size: 1.4em; color: var(--accent-gold-battle);
+        text-align: center; border-bottom: 1px solid var(--blood-red);
+        padding-bottom: 5px; margin-bottom: 5px; text-shadow: 0 0 5px var(--accent-gold-battle);
+    }
+    #battle-ui-wrapper .combatant-bar {
+        padding: 8px 12px; background: #2b2b2b;
+        border: 1px solid var(--battle-border-color);
+        border-radius: 4px; cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    #battle-ui-wrapper .combatant-bar:hover { background: #3a3a3a; border-color: var(--accent-gold-battle); }
+    #battle-ui-wrapper .combatant-bar.selected { animation: target-lock-pulse 2s infinite ease-in-out; }
+    @keyframes target-lock-pulse {
+        0%, 100% { background: var(--blood-red-dark); border-color: var(--accent-gold-battle); box-shadow: 0 0 10px var(--accent-gold-battle); }
+        50% { background: #8f0000; border-color: #fff; box-shadow: 0 0 20px #fff, 0 0 10px var(--accent-gold-battle); }
+    }
+    #battle-ui-wrapper .combatant-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.1em; margin-bottom: 6px; }
+    #battle-ui-wrapper .combatant-name { font-family: var(--battle-font-secondary); color: var(--text-light); text-shadow: 1px 1px 2px #000; }
+    #battle-ui-wrapper .combatant-type { font-size: 0.8em; color: var(--text-secondary-battle); }
+    #battle-ui-wrapper .stat-bars { display: flex; flex-direction: column; gap: 4px; }
+    #battle-ui-wrapper .stat-bar { width: 100%; height: 16px; background-color: var(--bar-bg); border: 1px solid #111; border-radius: 3px; position: relative; overflow: hidden; }
+    #battle-ui-wrapper .stat-bar-value::before {
+        content: ''; position: absolute; top: 0; left: 0; width: 50%; height: 100%;
+        background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+        animation: bar-flow 3s infinite linear;
+    }
+    #battle-ui-wrapper .stat-bar-value { height: 100%; transition: width 0.5s ease; position: absolute; top: 0; left: 0; }
+    #battle-ui-wrapper .stat-bar-value.hp { background: linear-gradient(90deg, var(--hp-color) 0%, var(--hp-color-light) 100%); }
+    #battle-ui-wrapper .stat-bar-value.mp { background: linear-gradient(90deg, var(--mp-color) 0%, var(--mp-color-light) 100%); }
+    #battle-ui-wrapper .stat-bar-text { position: absolute; width: 100%; text-align: center; font-size: 11px; font-weight: 700; color: white; text-shadow: 1px 1px 2px #000, 0 0 3px #000; line-height: 14px; }
+    #battle-ui-wrapper .stat-bar-text .label { font-weight: 500; }
+    #battle-ui-wrapper .action-panel { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; min-height: 200px; }
+    #battle-ui-wrapper .tab-panel { display: flex; flex-direction: column; background: rgba(10,10,15,0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; overflow: hidden; }
+    #battle-ui-wrapper .tabs { display: flex; background: #2b2b2b; }
+    #battle-ui-wrapper .tab-button {
+        flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 3px solid transparent;
+        color: var(--text-secondary-battle); font-family: var(--battle-font-secondary);
+        font-size: 1.2em; font-weight: 700; cursor: pointer; transition: all 0.3s ease;
+        text-shadow: 1px 1px 2px #000; 
+    }
+    #battle-ui-wrapper .tab-button:hover { color: var(--text-light); background: #3a3a3a; }
+    #battle-ui-wrapper .tab-button.active-tab { color: var(--accent-gold-battle); border-bottom-color: var(--blood-red); background: rgba(0,0,0,0.2); }
+    #battle-ui-wrapper #tab-content-area { padding: 10px; height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    #battle-ui-wrapper .action-item-button {
+        display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 8px 12px;
+        background: #333; border: 1px solid var(--battle-border-color); border-radius: 4px;
+        color: var(--text-light); cursor: pointer; transition: all 0.3s ease; text-align: left;
+    }
+    #battle-ui-wrapper .action-item-button:hover { background: var(--blood-red-dark); border-color: var(--blood-red-light); }
+    #battle-ui-wrapper .action-item-name { font-weight: 700; font-size: 1.05em; }
+    #battle-ui-wrapper .action-item-cost { font-size: 0.9em; color: var(--mp-color-light); font-weight: 500; }
+    #battle-ui-wrapper .action-item-count { font-size: 0.9em; color: var(--text-secondary-battle); font-weight: 500; }
+    #battle-ui-wrapper .action-item-desc { font-size: 0.85em; color: var(--text-secondary-battle); width: 100%; margin-top: 4px; }
+    #battle-ui-wrapper .core-actions { display: flex; flex-direction: column; gap: 8px; }
+    #battle-ui-wrapper .core-action-button {
+        width: 100%; height: 100%; padding: 15px;
+        font-family: var(--battle-font-secondary); font-size: 1.4em; font-weight: 700;
+        background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), linear-gradient(180deg, var(--blood-red-dark) 0%, #4a0000 100%);
+        background-color: var(--blood-red-dark); color: var(--text-light);
+        border: 1px solid var(--blood-red); border-radius: 6px; cursor: pointer; transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255, 100, 100, 0.2);
+        text-shadow: 0 0 5px #000, 1px 1px 2px #000; 
+    }
+    #battle-ui-wrapper .core-action-button:hover {
+        background-color: var(--blood-red-light); color: white;
+        box-shadow: 0 0 10px var(--blood-red-light), 0 0 15px var(--blood-red), inset 0 1px 1px rgba(255, 100, 100, 0.4);
+    }
+    #battle-ui-wrapper .pre-input-area { display: flex; flex-direction: column; gap: 8px; }
+    #battle-ui-wrapper #pre-input-bar { width: 100%; min-height: 60px; background: var(--parchment-bg-dark); border: 1px solid var(--battle-border-color); border-radius: 4px; color: var(--text-light); font-family: var(--battle-font-primary); font-size: 1em; padding: 8px; resize: vertical; }
+    #battle-ui-wrapper #start-turn-button {
+        width: 100%; padding: 12px; font-family: var(--battle-font-secondary);
+        font-size: 1.5em; font-weight: 700; background: var(--accent-gold-battle); color: var(--text-dark);
+        border: none; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;
+        box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+    }
+    #battle-ui-wrapper #start-turn-button:hover { background: #fff; color: #000; box-shadow: 0 0 25px #fff; }
+    #battle-ui-wrapper .battle-log-area { height: 150px; background: var(--parchment-bg-dark); border: 1px solid var(--battle-border-color); border-radius: 6px; padding: 12px; overflow-y: auto; white-space: pre-line; font-size: 0.9em; color: var(--text-light); }
+    #battle-ui-wrapper #end-battle-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay-bg); display: flex; justify-content: center; align-items: center; z-index: 100; }
+    #battle-ui-wrapper #end-battle-button {
+        padding: 20px 40px; font-family: var(--battle-font-secondary);
+        font-size: 2em; font-weight: 700; background: var(--accent-gold-battle); color: var(--text-dark);
+        border: none; border-radius: 8px; cursor: pointer; transition: all 0.3s ease;
+        box-shadow: 0 0 20px var(--accent-gold-battle);
+    }
+    #battle-ui-wrapper #end-battle-button:hover { background: #fff; color: #000; transform: scale(1.05); }
+</style>
+</head>
+<body>
+    <div id="chessboard-container-wrapper">
+        <p style="color: #a0a0a0; font-style: italic; text-align: center; padding: 20px;">
+            正在加载“无双志”...
+        </p>
+    </div>
+
+    <div id="battle-ui-wrapper" class="hidden">
+        <div class="combatant-area">
+            <div class="team" id="player-combatants-area">
+                <div class="team-title">我方阵营</div>
+                <p id="player-combatants-placeholder" class="empty-state-text">(等待我方单位...)</p>
+            </div>
+            <div class="team" id="enemy-combatants-area">
+                <div class="team-title">敌方阵营</div>
+                <p id="enemy-combatants-placeholder" class="empty-state-text">(等待敌方单位...)</p>
+            </div>
+        </div>
+        <div class="action-panel">
+            <div class="tab-panel">
+                <div class="tabs">
+                    <button id="tab-btn-skills" class="tab-button" onclick="window.battle_ui_events.selectTab('skills')">
+                        <i class="fa-solid fa-magic-wand-sparkles"></i> 技
+                    </button>
+                    <button id="tab-btn-bags" class="tab-button" onclick="window.battle_ui_events.selectTab('bags')">
+                        <i class="fa-solid fa-sack"></i> 行囊
+                    </button>
+                </div>
+                <div id="tab-content-area">
+                    <p class="empty-state-text">(请选择一个单位)</p>
+                </div>
+            </div>
+            <div class="core-actions">
+                <button class="core-action-button" onclick="window.battle_ui_events.coreAction('攻击')">
+                    <i class="fa-solid fa-khanda"></i> 攻击
+                </button>
+                <button class="core-action-button" onclick="window.battle_ui_events.coreAction('防御')">
+                    <i class="fa-solid fa-shield-halved"></i> 防御
+                </button>
+                <button class="core-action-button" onclick="window.battle_ui_events.coreAction('逃跑')">
+                    <i class="fa-solid fa-person-running"></i> 逃跑
+                </button>
+            </div>
+        </div>
+        <div class="pre-input-area">
+            <textarea id="pre-input-bar" placeholder="此处显示您选择的行动..."></textarea>
+            <button id="start-turn-button" onclick="window.battle_ui_events.startTurn()">
+                <i class="fa-solid fa-play"></i> 开 始
+            </button>
+        </div>
+        <div class="battle-log-area" id="battle-log-content">
+            (战斗日志将显示于此...)
+        </div>
+        <div id="end-battle-overlay" class="hidden">
+            <button id="end-battle-button" onclick="window.battle_ui_events.endBattle()">
+                <i class="fa-solid fa-flag-checkered"></i> 战斗结束
+            </button>
+        </div>
+    </div>
+
+<script>
+(function() {
+    if (window.MASTER_UI_INITIALIZED) return;
+    window.MASTER_UI_INITIALIZED = true;
+    console.log("--- [天下为棋 Master UI v21] 多气泡分离模式 ---"); 
+
+    // --- [ 1. GLOBAL HELPERS ] ---
+    window.last_stat_data = {}; 
+    let selectedParticipantKey = 'player'; 
+    let currentCombatTab = 'skills'; 
+
+    const isObject = (item) => (item && typeof item === 'object' && !Array.isArray(item));
+    const setToggle = (id, visible) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', !visible); };
+    const deepMerge = (target, source) => {
+        let output = Object.assign({}, target);
+        if (isObject(target) && isObject(source)) {
+            Object.keys(source).forEach(key => {
+                if (key === '$meta') return;
+                if (isObject(source[key])) {
+                    if (!(key in target) || !isObject(target[key])) { Object.assign(output, { [key]: source[key] }); } 
+                    else { output[key] = deepMerge(target[key], source[key]); }
+                } else { Object.assign(output, { [key]: source[key] }); }
+            });
+        }
+        return output;
+    };
+    const SafeGetValue = (obj, path, defaultValue) => {
+        try {
+            if (!obj || typeof obj !== 'object') return defaultValue;
+            const keys = path.split('.');
+            let current = obj;
+            for (let i = 0; i < keys.length; i++) {
+                const key = keys[i];
+                const match = key.match(/^(.+?)\[(\d+)\]$/);
+                if (match) {
+                    const arrayKey = match[1];
+                    const index = parseInt(match[2], 10);
+                    if (current && typeof current === 'object' && arrayKey in current && Array.isArray(current[arrayKey]) && index >= 0 && index < current[arrayKey].length) {
+                        current = current[arrayKey][index];
+                    } else { return defaultValue; }
+                } else if (current && typeof current === 'object' && key in current) {
+                    current = current[key];
+                } else { return defaultValue; }
+            }
+            return (current === undefined || current === null) ? defaultValue : current;
+        } catch (error) {
+            console.warn(`SafeGetValue 警告: path "${path}" 取值失败。`, error);
+            return defaultValue;
+        }
+    };
+    const getDataBlock = (root, path) => {
+        let val = SafeGetValue(root, path, undefined);
+        if (val === undefined) val = SafeGetValue(root, `${path}[0]`, undefined);
+        if (Array.isArray(val)) { if (val.length > 0 && typeof val[0] === 'object' && val[0] !== null) return val[0]; return {}; }
+        if (typeof val === 'object' && val !== null) return val;
+        return {};
+    };
+    const getKeys = (obj) => Object.keys(obj || {}).filter(k => k !== '$meta' && k !== '__description');
+    const normalizeText = (str) => (str ?? '').toString().replace(/\\\\n/g, '\n').replace(/\\n/g, '\n');
+    const normalizeHtml = (str) => normalizeText(str).replace(/\n/g, '<br>');
+
+    // 默认空状态
+    const defaultMasterEmptyState = {
+        "UI状态": { "当前界面": ["日常", ""] },
+        "战斗状态": { "战斗者": [ { "$meta": { "extensible": true } } ], "当前目标": ["player", ""], "预输入": ["", ""], "战斗日志": ["", ""] },
+        "世界": { "时间": ["（暂无）", ""], "地点": ["（暂无）", ""] },
+        "主角": { "势力": ["群雄", ""], "声望": ["无名之辈", ""], "命": [1000, ""], "法": [1000, ""], "武力": [0, ""], "谋略": [0, ""], "魅力": [0, ""], "官职": ["无", ""], "血脉": ["凡人", ""], "仙术": [ { "$meta": { "extensible": true } } ] },
+        "行囊": { 
+            "装备": { "武器": ["无", ""], "防具": ["无", ""], "饰品": ["无", ""] }, 
+            "背包": [ { "$meta": { "extensible": true } } ] 
+        },
+        "关系表": [ { "$meta": { "extensible": true } } ],
+        "结缘录": [ { "$meta": { "extensible": true } } ],
+        "天下闻": { "奇闻": ["（暂无奇闻）", ""], "当前剧情": ["（等待开局...）", ""], "咏叹": ["（暂无诗篇）", ""] }
+    };
+
+    // MVU 交互助手（保持）
+    window.SillyTavern_MVU_Set = (path, old_val, new_val, comment = "UI: Set") => {
+        if (typeof Mvu === 'undefined') return console.warn("[MasterUI] Mvu not found!");
+        Mvu.setVariable(path, old_val, new_val, comment);
+    };
+    window.SillyTavern_TriggerSlash = (command) => {
+        if (typeof triggerSlash === 'function') {
+            console.log(`[MasterUI] Triggering Slash: ${command}`);
+            triggerSlash(command);
+        } else {
+            console.warn('triggerSlash function not found. Command:', command);
+            alert(`Error: triggerSlash function not found. Cannot send command:\n${command}`);
+        }
+    };
+
+    // --- [ 2. 片段渲染（*修改*） ] ---
+    // *修改*：populate... 函数现在只返回 .section-content 内部的内容
+    
+    const emptyIcon = `<p class="empty-state-text">(空)</p>`;
+    const emptyVal = "---";
+    const daily_updateProgressBar = (barId, current, max) => {
+        const bar = document.getElementById(barId);
+        if (bar) {
+            const percentage = max > 0 ? (current / max) * 100 : 0;
+            bar.style.width = `${Math.max(0, Math.min(100, percentage))}%`;
+        }
+    };
+    function populateWorldInfo(worldData) {
+        return `
+        <div class="world-info-box">
+            <p><i class="fa-solid fa-clock"></i> <span class="property-name">时间:</span> <span class="value-main">${SafeGetValue(worldData, '时间[0]', emptyVal)}</span></p>
+            <p><i class="fa-solid fa-map-location-dot"></i> <span class="property-name">地点:</span> <span class="value-main">${SafeGetValue(worldData, '地点[0]', emptyVal)}</span></p>
+        </div>`;
+    }
+    function populateProtagonist(protagonistData) {
+        const statIcons = { '声望': 'fa-star-half-alt', '官职': 'fa-scroll', '血脉': 'fa-dna', '武力': 'fa-gavel', '谋略': 'fa-brain', '魅力': 'fa-heart-circle-bolt' };
+        const statsHtml = `
+            <div class="char-property-grid">
+                <i class="fa-solid ${statIcons['声望']} char-icon"></i><span class="char-prop-name">声望</span><span class="char-prop-value">${SafeGetValue(protagonistData, '声望[0]', emptyVal)}</span>
+                <i class="fa-solid ${statIcons['官职']} char-icon"></i><span class="char-prop-name">官职</span><span class="char-prop-value">${SafeGetValue(protagonistData, '官职[0]', emptyVal)}</span>
+                <i class="fa-solid ${statIcons['血脉']} char-icon"></i><span class="char-prop-name">血脉</span><span class="char-prop-value">${SafeGetValue(protagonistData, '血脉[0]', emptyVal)}</span>
+                <i class="fa-solid ${statIcons['武力']} char-icon"></i><span class="char-prop-name">武力</span><span class="char-prop-value">${SafeGetValue(protagonistData, '武力[0]', 0)}</span>
+                <i class="fa-solid ${statIcons['谋略']} char-icon"></i><span class="char-prop-name">谋略</span><span class="char-prop-value">${SafeGetValue(protagonistData, '谋略[0]', 0)}</span>
+                <i class="fa-solid ${statIcons['魅力']} char-icon"></i><span class="char-prop-name">魅力</span><span class="char-prop-value">${SafeGetValue(protagonistData, '魅力[0]', 0)}</span>
+            </div>`;
+        const skills = getDataBlock(protagonistData, '仙术');
+        const skillKeys = getKeys(skills);
+        let skillsHtml = '';
+        if (skillKeys.length > 0) {
+            skillsHtml = skillKeys.map(key => {
+                const skill = skills[key];
+                if (!isObject(skill)) return '';
+                return `<details class="sub-section">
+                            <summary>${SafeGetValue(skill, '名称[0]', key)}<span class="arrow-toggle">&gt;</span></summary>
+                            <div class="sub-section-content news-content">
+                                ${normalizeHtml(SafeGetValue(skill, '描述[0]', '暂无描述。'))}
+                            </div>
+                        </details>`;
+            }).join('');
+        } else {
+            skillsHtml = emptyIcon;
+        }
+        // *修改*：移除 <details class="section"> 和 <summary> 包装
+        return `
+        <div class="section-content">
+            ${statsHtml}<hr><h4>仙术/技能</h4>${skillsHtml}
+        </div>`;
+    }
+    function populateHangnang(hangnangData) {
+        const equipmentData = SafeGetValue(hangnangData, '装备', {});
+        const equipmentHtml = `
+            <div class="char-property-grid">
+                <i class="fa-solid fa-khanda char-icon"></i><span class="char-prop-name">武器</span><span class="char-prop-value">${SafeGetValue(equipmentData, '武器[0]', emptyVal)}</span>
+                <i class="fa-solid fa-shirt char-icon"></i><span class="char-prop-name">防具</span><span class="char-prop-value">${SafeGetValue(equipmentData, '防具[0]', emptyVal)}</span>
+                <i class="fa-solid fa-gem char-icon"></i><span class="char-prop-name">饰品</span><span class="char-prop-value">${SafeGetValue(equipmentData, '饰品[0]', emptyVal)}</span>
+            </div>`;
+        const backpack = getDataBlock(hangnangData, '背包');
+        const backpackKeys = getKeys(backpack);
+        let backpackHtml = '';
+        if (backpackKeys.length > 0) {
+            backpackHtml = backpackKeys.map(key => {
+                const item = backpack[key];
+                if (!isObject(item)) return '';
+                return `<div class="item-row">
+                            <span class="value-main">${SafeGetValue(item, '名称[0]', key)}</span>
+                            <span class="property-name">x ${SafeGetValue(item, '数量[0]', 0)}</span>
+                        </div>`;
+            }).join('');
+        } else { backpackHtml = emptyIcon; }
+        // *修改*：移除 <details class="section"> 和 <summary> 包装
+        return `
+        <div class="section-content">
+            <details class="sub-section" open>
+                <summary>装备<span class="arrow-toggle">&gt;</span></summary>
+                <div class="sub-section-content">${equipmentHtml}</div>
+            </details>
+            <details class="sub-section">
+                <summary>背包<span class="arrow-toggle">&gt;</span></summary>
+                <div class="sub-section-content">${backpackHtml}</div>
+            </details>
+        </div>`;
+    }
+    function populateRelationships(data) {
+        const relationships = getDataBlock(data, '关系表');
+        const allNpcs = getDataBlock(data, '结缘录');
+        const relKeys = getKeys(relationships);
+        let relationshipsHtml = '';
+        if (relKeys.length > 0) {
+            relationshipsHtml = relKeys.map(key => {
+                const relationship = relationships[key];
+                const npcName = SafeGetValue(allNpcs, `${key}.姓名[0]`, key);
+                const relText = (typeof relationship === 'string') ? relationship : JSON.stringify(relationship);
+                return `<div class="item-row">
+                            <span class="value-main">${npcName}</span>
+                            <span class="property-name">${relText}</span>
+                        </div>`;
+            }).join('');
+        } else { relationshipsHtml = emptyIcon; }
+        // *修改*：移除 <details class="section"> 和 <summary> 包装
+        return `
+        <div class="section-content">${relationshipsHtml}</div>`;
+    }
+    function populateFates(data) {
+        const fates = getDataBlock(data, '结缘录');
+        const fateKeys = getKeys(fates);
+        let fatesHtml = '';
+        if (fateKeys.length > 0) {
+            fatesHtml = fateKeys.map(key => {
+                const npc = fates[key];
+                if (!isObject(npc)) return '';
+                const npcName = SafeGetValue(npc, '姓名[0]', key);
+                const favor = SafeGetValue(npc, '好感度[0]', 0);
+                const barId = `favor-bar-${key}`;
+                const npcStatsHtml = `
+                    <div class="char-property-grid">
+                        <i class="fa-solid fa-address-card char-icon"></i><span class="char-prop-name">官职</span><span class="char-prop-value">${SafeGetValue(npc, '官职[0]', emptyVal)}</span>
+                        <i class="fa-solid fa-cake-candles char-icon"></i><span class="char-prop-name">年龄</span><span class="char-prop-value">${SafeGetValue(npc, '年龄[0]', 'N/A')}</span>
+                        <i class="fa-solid fa-gavel char-icon"></i><span class="char-prop-name">武力</span><span class="char-prop-value">${SafeGetValue(npc, '武力[0]', 'N/A')}</span>
+                        <i class="fa-solid fa-brain char-icon"></i><span class="char-prop-name">谋略</span><span class="char-prop-value">${SafeGetValue(npc, '谋略[0]', 'N/A')}</span>
+                        <i class="fa-solid fa-heart char-icon"></i><span class="char-prop-name">魅力</span><span class="char-prop-value">${SafeGetValue(npc, '魅力[0]', 'N/A')}</span>
+                        <i class="fa-solid fa-hand-holding-heart char-icon"></i><span class="char-prop-name">关系</span><span class="char-prop-value">${SafeGetValue(npc, '当前关系[0]', 'N/A')}</span>
+                        <i class="fa-solid fa-khanda char-icon"></i><span class="char-prop-name">武器</span><span class="char-prop-value">${SafeGetValue(npc, '武器[0]', 'N/A')}</span>
+                        <i class="fa-solid fa-horse char-icon"></i><span class="char-prop-name">坐骑</span><span class="char-prop-value">${SafeGetValue(npc, '坐骑[0]', 'N/A')}</span>
+                    </div>
+                    <hr>
+                    <p><span class="property-name">外貌:</span> <span class="value-main">${SafeGetValue(npc, '外貌[0]', 'N/A')}</span></p>
+                    <p><span class="property-name">衣着:</span> <span class="value-main">${SafeGetValue(npc, '衣着[0]', 'N/A')}</span></p>
+                    <hr>
+                    <p style="text-align: center;"><span class="property-name">好感度: ${favor} / 1000</span></p>
+                    <div class="char-favor-bar-container"><div id="${barId}" class="char-favor-bar"></div></div>
+                    `;
+                return `<details class="sub-section">
+                            <summary>${npcName}<span class="arrow-toggle">&gt;</span></summary>
+                            <div class="sub-section-content">${npcStatsHtml}</div>
+                        </details>`;
+            }).join('');
+        } else { fatesHtml = emptyIcon; }
+        setTimeout(() => {
+            if (fateKeys.length > 0) {
+                fateKeys.forEach(key => {
+                    const npc = fates[key]; 
+                    if (!isObject(npc)) return;
+                    const favor = SafeGetValue(npc, '好感度[0]', 0);
+                    daily_updateProgressBar(`favor-bar-${key}`, favor, 1000);
+                });
+            }
+        }, 0);
+        // *修改*：移除 <details class="section"> 和 <summary> 包装
+        return `
+        <div class="section-content">${fatesHtml}</div>`;
+    }
+    function populateNews(newsData) {
+        const strangeNews = normalizeHtml(SafeGetValue(newsData, '奇闻[0]', '暂无奇闻'));
+        const currentPlot = normalizeHtml(SafeGetValue(newsData, '当前剧情[0]', '暂无剧情'));
+        const newsHtml = `
+            <details class="sub-section">
+                <summary><i class="fa-solid fa-scroll" style="margin-right: 8px; opacity: 0.7;"></i>奇闻<span class="arrow-toggle">&gt;</span></summary>
+                <div class="sub-section-content news-content">
+                    ${strangeNews || emptyIcon}
+                </div>
+            </details>
+            <details class="sub-section">
+                <summary><i class="fa-solid fa-theater-masks" style="margin-right: 8px; opacity: 0.7;"></i>当前剧情<span class="arrow-toggle">&gt;</span></summary>
+                <div class="sub-section-content news-content">
+                    ${currentPlot || emptyIcon}
+                </div>
+            </details>`;
+        // *修改*：移除 <details class="section"> 和 <summary> 包装
+        return `
+        <div class="section-content">${newsHtml}</div>`;
+    }
+    function populateYongtan(newsData) {
+        const yongtan_raw = SafeGetValue(newsData, '咏叹[0]', '（暂无诗篇）');
+        const text = normalizeText(yongtan_raw);
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        let poemHtml = '<div class="poem-grid">';
+        for (let i = 0; i < 8; i += 2) {
+            poemHtml += `<p>${lines[i] || '...'}</p>`;
+            poemHtml += `<p>${lines[i+1] || '...'}</p>`;
+        }
+        poemHtml += '</div>';
+        return `
+        <div class="master-ui-title yongtan-footer">
+            <h1>宿命咏叹</h1>
+            ${poemHtml}
+        </div>`;
+    }
+
+    // --- [ 3. 日常 UI 渲染（*重构为多气泡*） ] ---
+    function renderDailyUI(data) {
+        const wrapper = document.getElementById('chessboard-container-wrapper');
+        if (!wrapper) { console.error("[MasterUI] Daily UI wrapper not found!"); return; }
+
+        const faction = SafeGetValue(data,'主角.势力[0]','群雄');
+        let themeClass = 'theme-imperial'; 
+        if ((faction || '').includes('汉') || (faction || '').toLowerCase().includes('han')) themeClass = 'theme-draconic';
+        else if ((faction || '').includes('魏') || (faction || '').toLowerCase().includes('wei')) themeClass = 'theme-abyss';
+        else if ((faction || '').includes('吴') || (faction || '').toLowerCase().includes('wu')) themeClass = 'theme-elven';
+        wrapper.className = `status-container ${themeClass}`;
+
+        // *修改*：populate... 函数现在只返回内容 HTML
+        const worldHtml = populateWorldInfo(SafeGetValue(data, '世界', {}));
+        const protagonistHtml = populateProtagonist(SafeGetValue(data, '主角', {}));
+        const hangnangHtml = populateHangnang(SafeGetValue(data, '行囊', {}));
+        const relationshipsHtml = populateRelationships(data); 
+        const fatesHtml = populateFates(data);
+        const newsData = SafeGetValue(data, '天下闻', {}); 
+        const newsHtml = populateNews(newsData);
+        const yongtanHtml = populateYongtan(newsData); 
+
+        // *修改*：重构为多气泡 HTML 结构
+        wrapper.innerHTML = `
+            <div class="master-ui-title"><h1>无双志</h1></div>
+            ${worldHtml} 
+
+            <section class="bubble-shell" id="bubble-shell-protagonist">
+                <button class="bubble-toggle" aria-expanded="true" data-controls="bubble-content-protagonist">
+                    <span class="pulse-dot" aria-hidden="true"></span>
+                    <span><i class="fa-solid fa-user summary-icon"></i> 主角</span>
+                </button>
+                <div class="big-bubble" id="bubble-content-protagonist">
+                    <div class="bubble-inner">
+                        ${protagonistHtml}
+                    </div>
+                </div>
+            </section>
+
+            <section class="bubble-shell" id="bubble-shell-hangnang">
+                <button class="bubble-toggle" aria-expanded="false" data-controls="bubble-content-hangnang">
+                    <span class="pulse-dot" aria-hidden="true"></span>
+                    <span><i class="fa-solid fa-briefcase summary-icon"></i> 行囊</span>
+                </button>
+                <div class="big-bubble" id="bubble-content-hangnang">
+                    <div class="bubble-inner">
+                        ${hangnangHtml}
+                    </div>
+                </div>
+            </section>
+
+            <section class="bubble-shell" id="bubble-shell-relationships">
+                <button class="bubble-toggle" aria-expanded="false" data-controls="bubble-content-relationships">
+                    <span class="pulse-dot" aria-hidden="true"></span>
+                    <span><i class="fa-solid fa-users summary-icon"></i> 关系表</span>
+                </button>
+                <div class="big-bubble" id="bubble-content-relationships">
+                    <div class="bubble-inner">
+                        ${relationshipsHtml}
+                    </div>
+                </div>
+            </section>
+
+            <section class="bubble-shell" id="bubble-shell-fates">
+                <button class="bubble-toggle" aria-expanded="false" data-controls="bubble-content-fates">
+                    <span class="pulse-dot" aria-hidden="true"></span>
+                    <span><i class="fa-solid fa-book-open summary-icon"></i> 结缘录</span>
+                </button>
+                <div class="big-bubble" id="bubble-content-fates">
+                    <div class="bubble-inner">
+                        ${fatesHtml}
+                    </div>
+                </div>
+            </section>
+
+            <section class="bubble-shell" id="bubble-shell-news">
+                <button class="bubble-toggle" aria-expanded="false" data-controls="bubble-content-news">
+                    <span class="pulse-dot" aria-hidden="true"></span>
+                    <span><i class="fa-solid fa-newspaper summary-icon"></i> 天下闻</span>
+                </button>
+                <div class="big-bubble" id="bubble-content-news">
+                    <div class="bubble-inner">
+                        ${newsHtml}
+                    </div>
+                </div>
+            </section>
+
+            ${yongtanHtml} 
+        `;
+
+        // *修改*：调用新的初始化函数
+        initializeDailyBubbles();
+    }
+
+    // *新增*：初始化所有气泡（设置初始高度 + 挂载 ResizeObserver）
+    function initializeDailyBubbles() {
+        const wrapper = document.getElementById('chessboard-container-wrapper');
+        if (!wrapper) return;
+
+        const shells = wrapper.querySelectorAll('.bubble-shell');
+        shells.forEach(shell => {
+            const bubble = shell.querySelector('.big-bubble');
+            const inner = shell.querySelector('.bubble-inner');
+            const toggle = shell.querySelector('.bubble-toggle');
+            if (!toggle || !bubble || !inner) return;
+
+            // 1. 根据 aria-expanded 属性设置初始开合状态
+            const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+            if (isExpanded) {
+                shell.classList.add('open');
+                bubble.style.maxHeight = inner.scrollHeight + 'px';
+            } else {
+                shell.classList.remove('open');
+                bubble.style.maxHeight = '0px';
+            }
+
+            // 2. 挂载 ResizeObserver，确保展开/收起 <details> 时父气泡高度自适应
+            // 检查是否已有 RO，防止重复挂载
+            if (inner._resizeObserver) inner._resizeObserver.disconnect();
+            
+            const ro = new ResizeObserver(() => {
+                if (shell.classList.contains('open')) {
+                    // 动态调整 maxHeight
+                    bubble.style.maxHeight = inner.scrollHeight + 'px';
+                }
+            });
+            ro.observe(inner);
+            inner._resizeObserver = ro; // 存储 RO 实例以便后续清理
+        });
+    }
+
+    // --- [ 4. 战斗 UI 渲染器（保持你的实现） ] ---
+    window.battle_ui_events = {
+        selectTab: (tabName) => { currentCombatTab = tabName; renderBattleUI(window.last_stat_data); },
+        _addToPreInput: (text) => {
+            try {
+                const preInputEl = document.getElementById('pre-input-bar');
+                if (!preInputEl) return;
+                const oldText_DOM = preInputEl.value;
+                const oldText_MVU = SafeGetValue(window.last_stat_data, '战斗状态.预输入[0]', '');
+                const newText_DOM = oldText_DOM ? oldText_DOM + '\n' + text : text;
+                const newText_MVU = oldText_MVU ? oldText_MVU + '\\n' + text : text; 
+                preInputEl.value = newText_DOM;
+                if (window.last_stat_data && window.last_stat_data['战斗状态'] && window.last_stat_data['战斗状态']['预输入']) {
+                    window.last_stat_data['战斗状态']['预输入'][0] = newText_MVU;
+                }
+                window.SillyTavern_MVU_Set('战斗状态.预输入[0]', oldText_MVU, newText_MVU, 'UI: 添加行动');
+            } catch(e) { console.error("[MasterUI] _addToPreInput failed:", e); }
+        },
+        _getCurrentTargetName: () => {
+            return SafeGetValue(window.last_stat_data, `战斗状态.战斗者[0].${selectedParticipantKey}.名称[0]`, '??');
+        },
+        useSkill: (skillName, skillKey) => { window.battle_ui_events._addToPreInput(`${window.battle_ui_events._getCurrentTargetName()} [使用技能] ${skillName}`); },
+        useItem: (itemName, itemKey) => { window.battle_ui_events._addToPreInput(`${window.battle_ui_events._getCurrentTargetName()} [使用物品] ${itemName}`); },
+        coreAction: (action) => { window.battle_ui_events._addToPreInput(`${window.battle_ui_events._getCurrentTargetName()} [${action}]`); },
+        startTurn: () => {
+            try {
+                const preInputEl = document.getElementById('pre-input-bar');
+                if (!preInputEl) return;
+                const textToSend = preInputEl.value; 
+                const oldText_MVU = SafeGetValue(window.last_stat_data, '战斗状态.预输入[0]', ''); 
+                if (textToSend && textToSend.trim() !== '') {
+                    const formattedCommand = `/send ${textToSend.replace(/\n/g, ' ')} |/trigger`;
+                    window.SillyTavern_TriggerSlash(formattedCommand); 
+                    preInputEl.value = '';
+                    if (window.last_stat_data && window.last_stat_data['战斗状态'] && window.last_stat_data['战斗状态']['预输入']) {
+                        window.last_stat_data['战斗状态']['预输入'][0] = '';
+                    }
+                    window.SillyTavern_MVU_Set('战斗状态.预输入[0]', oldText_MVU, '', 'UI: 清空预输入并已发送');
+                } else { console.warn("[MasterUI-Battle] 预输入为空，不发送。"); }
+            } catch(e) { console.error("[MasterUI] startTurn failed:", e); }
+        },
+        endBattle: () => { window.SillyTavern_TriggerSlash('/send [系统指令：战斗结束，请求结算] |/trigger'); }
+    };
+
+    function getParticipantData_v15(key, fullData) {
+        let skills = getDataBlock(fullData, `战斗状态.战斗者[0].${key}.仙术`);
+        let items  = getDataBlock(fullData, `战斗状态.战斗者[0].${key}.背包`);
+        const hasPayload = (o) => isObject(o) && getKeys(o).length > 0;
+        if (!hasPayload(skills)) {
+            if (key === 'player') skills = getDataBlock(fullData, '主角.仙术');
+            else skills = getDataBlock(fullData, `结缘录.${key.replace(/^npc_/, '')}.仙术`);
+        }
+        if (!hasPayload(items)) {
+            if (key === 'player') items = getDataBlock(fullData, '行囊.背包');
+            else items = getDataBlock(fullData, `结缘录.${key.replace(/^npc_/, '')}.背包`);
+        }
+        return { skills, items };
+    }
+
+    function renderBattleUI(data) {
+        const wrapper = document.getElementById('battle-ui-wrapper');
+        if (!wrapper) { console.error("[MasterUI] Battle UI wrapper not found!"); return; }
+        const playerArea = document.getElementById('player-combatants-area');
+        const enemyArea = document.getElementById('enemy-combatants-area');
+        const playerPlaceholder = document.getElementById('player-combatants-placeholder');
+        const enemyPlaceholder = document.getElementById('enemy-combatants-placeholder');
+        
+        playerArea.innerHTML = '<div class="team-title">我方阵营</div>';
+        enemyArea.innerHTML = '<div class="team-title">敌方阵营</div>';
+
+        const combatantsObj = SafeGetValue(data, '战斗状态.战斗者[0]', {});
+        const combatantKeys = Object.keys(combatantsObj).filter(k => k !== '$meta' && k !== '__description');
+        
+        if (!combatantsObj[selectedParticipantKey]) {
+            const firstPlayerAlly = combatantKeys.find(k => {
+                const type = SafeGetValue(combatantsObj[k], '类型[0]', '未知');
+                return type === '主角' || type === '友军';
+            });
+            selectedParticipantKey = firstPlayerAlly || combatantKeys[0] || null;
+        }
+
+        let playerUnitsFound = 0;
+        let enemyUnitsFound = 0;
+
+        combatantKeys.forEach(key => {
+            const unit = combatantsObj[key];
+            if (!isObject(unit)) return;
+            const name = SafeGetValue(unit, '名称[0]', key);
+            const type = SafeGetValue(unit, '类型[0]', '未知');
+            const hp_val = SafeGetValue(unit, '命[0]', 0);
+            const hp_max = SafeGetValue(unit, '命[1]', 100);
+            const mp_val = SafeGetValue(unit, '法[0]', 0);
+            const mp_max = SafeGetValue(unit, '法[1]', 100);
+            const hp_perc = hp_max > 0 ? (hp_val / hp_max) * 100 : 0;
+            const mp_perc = mp_max > 0 ? (mp_val / mp_max) * 100 : 0;
+            const isSelected = (key === selectedParticipantKey); 
+            const isClickable = (type === '主角' || type === '友军');
+
+            let barHtml = `<div class="combatant-bar ${isSelected ? 'selected' : ''} ${isClickable ? '' : 'non-clickable'}" 
+                                ${isClickable ? `data-key="${key}"` : ''}> 
+                                <div class="combatant-header">
+                                    <span class="combatant-name">${name}</span>
+                                    <span class="combatant-type">${type}</span>
+                                </div>
+                                <div class="stat-bars">
+                                    <div class="stat-bar"><div class="stat-bar-value hp" style="width: ${hp_perc}%;"></div><div class="stat-bar-text"><span class="label">命:</span> ${hp_val} / ${hp_max}</div></div>
+                                    <div class="stat-bar"><div class="stat-bar-value mp" style="width: ${mp_perc}%;"></div><div class="stat-bar-text"><span class="label">法:</span> ${mp_val} / ${mp_max}</div></div>
+                                </div>
+                             </div>`;
+
+            if (type === '主角' || type === '友军') { playerArea.innerHTML += barHtml; playerUnitsFound++; } 
+            else if (type === '敌军') { enemyArea.innerHTML += barHtml; enemyUnitsFound++; }
+        });
+
+        if (playerUnitsFound === 0) playerArea.appendChild(playerPlaceholder.cloneNode(true)); 
+        if (enemyUnitsFound === 0) enemyArea.appendChild(enemyPlaceholder.cloneNode(true)); 
+
+        const tabContentArea = document.getElementById('tab-content-area');
+        tabContentArea.innerHTML = '';
+        
+        document.getElementById('tab-btn-skills').classList.toggle('active-tab', currentCombatTab === 'skills');
+        document.getElementById('tab-btn-bags').classList.toggle('active-tab', currentCombatTab === 'bags');
+
+        const { skills, items } = getParticipantData_v15(selectedParticipantKey, data);
+        
+        if (currentCombatTab === 'skills') {
+            const skillKeys = getKeys(skills);
+            if (skillKeys.length > 0) {
+                skillKeys.forEach(key => {
+                    const skill = skills[key];
+                    if (!isObject(skill)) return;
+                    const name = SafeGetValue(skill, '名称[0]', key);
+                    const cost = SafeGetValue(skill, '消耗[0]', '无消耗');
+                    const desc = SafeGetValue(skill, '描述[0]', '暂无描述。');
+                    tabContentArea.innerHTML += `<button class="action-item-button" onclick="window.battle_ui_events.useSkill('${name}', '${key}')"><div><div class="action-item-name">${name}</div><div class="action-item-desc">${normalizeText(desc)}</div></div><div class="action-item-cost">${cost}</div></button>`;
+                });
+            } else { tabContentArea.innerHTML = '<p class="empty-state-text">(暂无技能)</p>'; }
+        } else { 
+            const bagKeys = getKeys(items);
+            if (bagKeys.length > 0) {
+                bagKeys.forEach(key => {
+                    const item = items[key];
+                    if (!isObject(item)) return;
+                    const name = SafeGetValue(item, '名称[0]', key);
+                    const count = SafeGetValue(item, '数量[0]', 0);
+                    const desc = SafeGetValue(item, '描述[0]', '暂无描述。');
+                    if (count <= 0) return; 
+                    tabContentArea.innerHTML += `<button class="action-item-button" onclick="window.battle_ui_events.useItem('${name}', '${key}')"><div><div class="action-item-name">${name}</div><div class="action-item-desc">${normalizeText(desc)}</div></div><div class="action-item-count">x ${count}</div></button>`;
+                });
+                if (tabContentArea.innerHTML === '') { tabContentArea.innerHTML = '<p class="empty-state-text">(行囊为空)</p>'; }
+            } else { tabContentArea.innerHTML = '<p class="empty-state-text">(行囊为空)</p>'; }
+        }
+
+        const preInputEl = document.getElementById('pre-input-bar');
+        const logEl = document.getElementById('battle-log-content');
+        if (preInputEl.value.trim() === '') { preInputEl.value = normalizeText(SafeGetValue(data, '战斗状态.预输入[0]', '')); }
+        logEl.innerHTML = normalizeHtml(SafeGetValue(data, '战斗状态.战斗日志[0]', '(战斗日志将显示于此...)'));
+        logEl.scrollTop = logEl.scrollHeight;
+        
+        const endBattleOverlay = document.getElementById('end-battle-overlay');
+        const enemies = combatantKeys.filter(k => SafeGetValue(combatantsObj[k], '类型[0]', '未知') === '敌军');
+        const enemiesAlive = enemies.filter(k => SafeGetValue(combatantsObj[k], '命[0]', 0) > 0).length;
+        const uiMode = SafeGetValue(data, 'UI状态.当前界面[0]', '日常'); 
+        if (uiMode === '战斗' && enemiesAlive === 0) { endBattleOverlay.classList.remove('hidden'); } 
+        else { endBattleOverlay.classList.add('hidden'); }
+    }
+
+    // --- [ 5. 主渲染路由 ] ---
+    function Master_Render_UI(data) {
+        if (!data || typeof data !== 'object') {
+            console.warn("[MasterUI] Master_Render_UI 收到无效数据。");
+            return;
+        }
+        window.last_stat_data = data; 
+        const uiMode = SafeGetValue(data, 'UI状态.当前界面[0]', '日常');
+        setToggle('chessboard-container-wrapper', uiMode === '日常');
+        setToggle('battle-ui-wrapper', uiMode === '战斗');
+        if (uiMode === '日常') renderDailyUI(data); else renderBattleUI(data);
+    }
+
+    // --- [ 6. 初始化 (*修改*) ] ---
+    async function Master_Init() {
+        console.log("--- [天下为棋 Master UI v21] Master_Init 启动 (多气泡版) ---");
+        try {
+            const hasChat = typeof getChatMessages === 'function' && typeof getCurrentMessageId === 'function';
+            const msgs = hasChat ? await getChatMessages(getCurrentMessageId()) : []; 
+            const data = msgs?.[0]?.data?.stat_data; 
+            let mergedData;
+            if (data && typeof data === 'object') {
+                console.log("[MasterUI] 发现 stat_data。与默认值合并。");
+                mergedData = deepMerge(defaultMasterEmptyState, data); 
+            } else {
+                console.warn('[MasterUI] 未发现 stat_data。使用默认空状态。');
+                mergedData = defaultMasterEmptyState;
+            }
+            Master_Render_UI(mergedData);
+            console.log("--- [MasterUI] Master_Init 完成 ---");
+
+            // *修改*：全局点击监听器，现在同时处理战斗和日常UI
+            document.addEventListener('click', function(event) {
+                const target = event.target;
+                
+                // --- 逻辑 1：战斗 UI 点击 ---
+                const combatWrapper = document.getElementById('battle-ui-wrapper');
+                if (combatWrapper && !combatWrapper.classList.contains('hidden')) {
+                    const combatantBar = target.closest && target.closest('.combatant-bar[data-key]');
+                    if (combatantBar) {
+                        const newKey = combatantBar.dataset.key;
+                        if (newKey !== selectedParticipantKey) {
+                            console.log("[MasterUI] 切换战斗目标 (本地):", newKey);
+                            selectedParticipantKey = newKey;
+                            renderBattleUI(window.last_stat_data);
+                        }
+                        return; // 已处理
+                    }
+                }
+
+                // --- 逻辑 2：日常 UI 气泡点击 (新) ---
+                const dailyWrapper = document.getElementById('chessboard-container-wrapper');
+                if (dailyWrapper && !dailyWrapper.classList.contains('hidden')) {
+                    const toggle = target.closest('.bubble-toggle');
+                    if (toggle) {
+                        const shell = toggle.closest('.bubble-shell');
+                        const contentId = toggle.getAttribute('data-controls');
+                        if (!contentId) return; // 不是我们控制的气泡
+                        
+                        const bubble = document.getElementById(contentId);
+                        if (!shell || !bubble) return;
+
+                        const isOpen = shell.classList.contains('open');
+
+                        // 设置动画原点
+                        const rect = bubble.getBoundingClientRect();
+                        const x = (event.clientX ?? (rect.left + rect.width / 2)) - rect.left;
+                        const y = (event.clientY ?? (rect.top + 16)) - rect.top;
+                        bubble.style.setProperty('--origin-x', x + 'px');
+                        bubble.style.setProperty('--origin-y', y + 'px');
+
+                        // 开合切换
+                        if (isOpen) {
+                            shell.classList.remove('open');
+                            toggle.setAttribute('aria-expanded', 'false');
+                            bubble.style.maxHeight = '0px';
+                        } else {
+                            const inner = bubble.querySelector('.bubble-inner');
+                            if (inner) {
+                                shell.classList.add('open');
+                                toggle.setAttribute('aria-expanded', 'true');
+                                bubble.style.maxHeight = inner.scrollHeight + 'px';
+                            }
+                        }
+                        return; // 已处理
+                    }
+                }
+            });
+
+            // 监听 MVU 变量更新
+            if (typeof waitGlobalInitialized === 'function') {
+                waitGlobalInitialized('Mvu').then(() => {
+                    if (typeof eventOn === 'function' && typeof Mvu !== 'undefined' && Mvu.events) {
+                        eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, m => {
+                            if (m && m.stat_data && typeof m.stat_data === 'object') {
+                                Master_Render_UI(m.stat_data); 
+                            } else {
+                                console.warn('[MasterUI] 收到 VARIABLE_UPDATE_ENDED 事件，但 stat_data 无效。');
+                            }
+                        });
+                    }
+                }).catch(()=>{});
+            }
+
+        } catch (e) {
+            console.error('CRITICAL Error during [MasterUI] Master_Init:', e);
+        }
+    }
+
+    if (typeof waitGlobalInitialized === 'function') {
+        console.log("[MasterUI] 等待 Mvu 初始化...");
+        waitGlobalInitialized('Mvu').then(Master_Init).catch(() => document.addEventListener('DOMContentLoaded', Master_Init));
+    } else {
+        console.warn('[MasterUI] waitGlobalInitialized 未找到。在 DOMContentLoaded 上加载。');
+        document.addEventListener('DOMContentLoaded', Master_Init);
+    }
+})();
+</script>
+</body>
+</html>
+```
